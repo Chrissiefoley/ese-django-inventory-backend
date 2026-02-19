@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'inventory',
+    'authentication',
 ]
 
 MIDDLEWARE = [
@@ -121,9 +122,29 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # CORS settings
-# CORS_ORIGIN_WHITELIST = [
-#     'http://localhost:3000',
-#     'http://127.0.0.1:3000',
-# ]
+
+ALLOWED_HOSTS = []
+
+# This is the URL where the frontend will be running
+# We only allow requests from this URL
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
+
+# This setting is required to allow the frontend to send cookies
+# with the requests
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication', 
+    ),
+}
+
+# JWT settings
+SIMPLE_JWT = {
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+
 # replace with actual frontend url on render/local.
 CORS_ALLOW_ALL_ORIGINS = True  

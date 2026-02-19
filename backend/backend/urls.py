@@ -25,4 +25,5 @@ router.register(r'items', ItemViewSet, 'item')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/auth/', include('authentication.urls')),
 ]
