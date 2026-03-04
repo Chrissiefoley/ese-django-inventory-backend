@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from .models import Item
-from .serializers import ItemSerializer
+from .models import Item, Order
+from .serializers import ItemSerializer, OrderSerializer
 
 
 class ItemViewSet(viewsets.ModelViewSet):
@@ -14,14 +14,3 @@ class ItemViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [IsAdminUser()]
 
-
-
-class OrderViewSet(viewsets.ModelViewSet):
-
-    serializer_class = ItemSerializer
-    queryset = Item.objects.all()
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [IsAdminUser()]
-        return [IsAdminUser()]
