@@ -1,9 +1,10 @@
 from django.db import models
 from django.conf import settings
+from inventory.models import Item
 
 # Create your models here.
 class Order(models.Model):
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    item = models.ForeignKey('inventory.Item', on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     quantity = models.IntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)

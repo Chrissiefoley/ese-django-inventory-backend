@@ -47,8 +47,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -136,12 +136,12 @@ STATIC_URL = 'static/'
 
 # CORS settings
 
-ALLOWED_HOSTS = []
-
 # This is the URL where the frontend will be running
 # We only allow requests from this URL
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8080',
 ]
 
 # This setting is required to allow the frontend to send cookies
@@ -159,5 +159,3 @@ SIMPLE_JWT = {
 }
 
 
-# replace with actual frontend url on render/local.
-CORS_ALLOW_ALL_ORIGINS = True  

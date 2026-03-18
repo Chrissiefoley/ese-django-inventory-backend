@@ -1,21 +1,17 @@
-from django.contrib.auth.models import User
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
+from rest_framework import generics, views
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import status
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from .serializers import UserSerializer
-
-from .serializers import RegisterSerializer
+from rest_framework import status, viewsets
+from .models import User
+from .serializers import UserSerializer, RegisterSerializer
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -23,15 +19,18 @@ class RegisterView(generics.CreateAPIView):
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
 
+class UserInfoView(views.APIView):
+    permission_classes = [IsAuthenticated]
 
-class UserViewSet(viewsets.ModelViewSet):
+    def get(self, request):
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
 
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all()
     serializer_class = UserSerializer
-    queryset = Item.objects.all()
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [IsAdminUser()]
-        return [IsAdminUser()]
+    permission_classes = [IsAuthenticated]
