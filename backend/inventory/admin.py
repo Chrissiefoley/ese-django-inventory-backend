@@ -3,6 +3,6 @@ from .models import Item
 
 # Register your models here.
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'quantity', 'price')
+    list_display = ('name', 'category', 'description', 'count', 'price')
 
 admin.site.register(Item, ItemAdmin)
