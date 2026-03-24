@@ -1,10 +1,12 @@
-from django.shortcuts import render
+from rest_framework import viewsets
+from rest_framework.permissions import IsAdminUser
+from .models import Order
+from .serializers import OrderSerializer
 
-# Create your views here.
+
 class OrderViewSet(viewsets.ModelViewSet):
-
     serializer_class = OrderSerializer
-    queryset = Item.objects.all()
+    queryset = Order.objects.all()
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

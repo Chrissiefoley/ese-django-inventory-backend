@@ -13,7 +13,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     contact_info = serializers.CharField(write_only=True, required=True)
     avatar = serializers.URLField(write_only=True, required=False, allow_blank=True)
     role = serializers.CharField(write_only=True, required=True)
-
     class Meta:
         model = User
         fields = ('username', 'password', 'email', 'role', 'employee_id', 'contact_info', 'avatar')
@@ -23,11 +22,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         contact_info = validated_data.pop('contact_info')
         avatar = validated_data.pop('avatar', '')
         role = validated_data.pop('role')
-
         with transaction.atomic():
             user = User.objects.create_user(
                 username=validated_data['username'],
-                email=validated_data['email'],
+                email=validated_data.get('email', ''),
                 password=validated_data['password'],
                 role=role
             )

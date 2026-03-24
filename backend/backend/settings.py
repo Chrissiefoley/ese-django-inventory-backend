@@ -144,12 +144,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 # This setting is required to allow the frontend to send cookies
 # with the requests
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication', 
+        'authentication.authenticate.CookieJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
 }
 

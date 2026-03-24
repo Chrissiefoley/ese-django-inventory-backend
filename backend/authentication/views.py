@@ -16,11 +16,25 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+
+        response = Response({
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
+
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite='Lax' # Or 'Strict'
+        )
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            samesite='Lax' # Or 'Strict'
+        )
+
+        return response
 
 class UserInfoView(views.APIView):
     permission_classes = [IsAuthenticated]
