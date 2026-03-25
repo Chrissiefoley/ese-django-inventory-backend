@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 from inventory.views import ItemViewSet
+from order.views import OrderViewSet
 
 router = routers.DefaultRouter()
 router.register(r'items', ItemViewSet, 'item')
+router.register(r'orders', OrderViewSet, 'order')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

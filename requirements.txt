@@ -5,3 +5,5 @@ python-decouple
 dj-database-url
 djangorestframework-simplejwt
 psycopg2-binary
+sendgrid
+python-dotenv

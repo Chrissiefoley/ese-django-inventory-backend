@@ -1,12 +1,16 @@
 import os
+import ssl
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Local dev bypass - Remove for production
+ssl._create_default_https_context = ssl._create_unverified_context
+
 api_key = os.environ.get('SENDGRID_API_KEY')
-from_email = os.environ.get('FROM_EMAIL')
+from_email = os.environ.get('DEFAULT_FROM_EMAIL') 
 to_email = os.environ.get('TO_EMAIL')
 
 def send_email():
@@ -23,4 +27,4 @@ def send_email():
         print(response.body)
         print(response.headers)
     except Exception as e:
-        print(e.message)
+        print(str(e))  
