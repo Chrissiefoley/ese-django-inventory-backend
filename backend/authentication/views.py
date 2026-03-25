@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, viewsets
 from .models import User
-from .serializers import UserSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, UserProfileUpdateSerializer
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -43,6 +43,18 @@ class UserInfoView(views.APIView):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data)
+
+    def patch(self, request):
+        user = request.user
+        serializer = UserProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(UserSerializer(user).data)
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()

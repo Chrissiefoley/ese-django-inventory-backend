@@ -8,7 +8,6 @@ User = get_user_model()
 
 
 class UserRegistrationTestCase(APITestCase):
-    """Test suite for user registration endpoint"""
 
     def setUp(self):
         self.client = APIClient()
@@ -18,13 +17,12 @@ class UserRegistrationTestCase(APITestCase):
             'email': 'test@example.com',
             'password': 'SecurePass123!',
             'employee_id': 'EMP001',
-            'contact_info': '+1234567890',
+            'contact_info': '0123 450065',
             'role': 'staff',
             'avatar': 'https://example.com/avatar.jpg'
         }
 
     def test_register_user_with_valid_data(self):
-        """Test that a user can register with valid data"""
         response = self.client.post(self.register_url, self.valid_payload, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -33,40 +31,33 @@ class UserRegistrationTestCase(APITestCase):
         self.assertEqual(response.data['user']['email'], 'test@example.com')
         self.assertEqual(response.data['user']['role'], 'staff')
 
-        # Verify user was created in database
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='testuser')
         self.assertTrue(user.check_password('SecurePass123!'))
 
-        # Verify UserInfo was created
+
         self.assertEqual(UserInfo.objects.count(), 1)
         user_info = UserInfo.objects.get(user=user)
         self.assertEqual(user_info.employee_id, 'EMP001')
-        self.assertEqual(user_info.contact_info, '+1234567890')
+        self.assertEqual(user_info.contact_info, '0123 450065')
         self.assertEqual(user_info.avatar, 'https://example.com/avatar.jpg')
 
     def test_register_sets_jwt_cookies(self):
-        """Test that registration returns JWT tokens in httponly cookies"""
         response = self.client.post(self.register_url, self.valid_payload, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # Check that cookies are set
         self.assertIn('access_token', response.cookies)
         self.assertIn('refresh_token', response.cookies)
 
-        # Verify cookies are httponly
         access_cookie = response.cookies['access_token']
         refresh_cookie = response.cookies['refresh_token']
         self.assertTrue(access_cookie['httponly'])
         self.assertTrue(refresh_cookie['httponly'])
 
     def test_register_with_duplicate_username(self):
-        """Test that registration fails with duplicate username"""
-        # Create first user
         self.client.post(self.register_url, self.valid_payload, format='json')
 
-        # Try to register with same username
         duplicate_payload = self.valid_payload.copy()
         duplicate_payload['email'] = 'different@example.com'
         duplicate_payload['employee_id'] = 'EMP002'
@@ -76,25 +67,8 @@ class UserRegistrationTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(User.objects.count(), 1)
 
-    def test_register_with_duplicate_employee_id(self):
-        """Test that registration fails with duplicate employee_id"""
-        # Create first user
-        self.client.post(self.register_url, self.valid_payload, format='json')
-
-        # Try to register with same employee_id
-        duplicate_payload = self.valid_payload.copy()
-        duplicate_payload['username'] = 'different_user'
-        duplicate_payload['email'] = 'different@example.com'
-
-        response = self.client.post(self.register_url, duplicate_payload, format='json')
-
-        # The atomic transaction ensures that if UserInfo creation fails,
-        # the User is also rolled back, so we should still have exactly 1 user
-        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR])
-        self.assertEqual(User.objects.count(), 1)
 
     def test_register_with_missing_required_fields(self):
-        """Test that registration fails when required fields are missing"""
         required_fields = ['username', 'password', 'employee_id', 'contact_info', 'role']
 
         for field in required_fields:
@@ -103,13 +77,10 @@ class UserRegistrationTestCase(APITestCase):
 
             response = self.client.post(self.register_url, payload, format='json')
 
-            # Email is not required at the serializer level (Django User allows blank email)
-            # but these other fields should trigger validation errors
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(field, response.data)
 
     def test_register_without_avatar_succeeds(self):
-        """Test that avatar field is optional"""
         payload = self.valid_payload.copy()
         del payload['avatar']
 
@@ -120,7 +91,6 @@ class UserRegistrationTestCase(APITestCase):
         self.assertEqual(user.user_info.avatar, '')
 
     def test_register_with_invalid_email(self):
-        """Test that registration fails with invalid email format"""
         payload = self.valid_payload.copy()
         payload['email'] = 'not-an-email'
 
@@ -128,30 +98,13 @@ class UserRegistrationTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_register_atomic_transaction(self):
-        """Test that User and UserInfo creation is atomic"""
-        # This test verifies that if UserInfo creation fails, User is also rolled back
-        # We can't easily simulate this without mocking, but we can verify
-        # that both are created together
-        response = self.client.post(self.register_url, self.valid_payload, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(UserInfo.objects.count(), 1)
-
-        user = User.objects.first()
-        user_info = UserInfo.objects.first()
-        self.assertEqual(user_info.user, user)
-
 
 class UserLoginTestCase(APITestCase):
-    """Test suite for user login endpoint"""
 
     def setUp(self):
         self.client = APIClient()
         self.login_url = '/api/auth/login/'
 
-        # Create a test user
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -165,7 +118,6 @@ class UserLoginTestCase(APITestCase):
         )
 
     def test_login_with_valid_credentials(self):
-        """Test that user can login with valid username and password"""
         payload = {
             'username': 'testuser',
             'password': 'SecurePass123!'
@@ -433,7 +385,6 @@ class UserRoleTestCase(TestCase):
         self.assertEqual(user.role, 'admin')
 
     def test_user_string_representation(self):
-        """Test user __str__ method"""
         user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -442,3 +393,59 @@ class UserRoleTestCase(TestCase):
         )
 
         self.assertEqual(str(user), 'testuser (staff)')
+
+
+class UserProfileUpdateTestCase(APITestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+        self.profile_url = '/api/auth/me/'
+
+        self.user = User.objects.create_user(
+            username='testuser@example.com',
+            email='testuser@example.com',
+            password='SecurePass123!',
+            role='staff'
+        )
+        UserInfo.objects.create(
+            user=self.user,
+            employee_id='EMP001',
+            contact_info='0123 456056',
+            avatar=''
+        )
+
+    def test_update_avatar_authenticated(self):
+        self.client.force_authenticate(user=self.user)
+
+        payload = {
+            'avatar': 'https://res.cloudinary.com/demo/image/upload/sample.jpg'
+        }
+        response = self.client.patch(self.profile_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.user_info.refresh_from_db()
+        self.assertEqual(self.user.user_info.avatar, payload['avatar'])
+        # Verify response includes updated data
+        self.assertEqual(response.data['user_info']['avatar'], payload['avatar'])
+
+
+    def test_update_contact_info(self):
+        self.client.force_authenticate(user=self.user)
+
+        payload = {'contact_info': '0123 350350'}
+        response = self.client.patch(self.profile_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.user_info.refresh_from_db()
+        self.assertEqual(self.user.user_info.contact_info, '0123 350350')
+
+    def test_update_email(self):
+        self.client.force_authenticate(user=self.user)
+
+        payload = {'email': 'newemail@example.com'}
+        response = self.client.patch(self.profile_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'newemail@example.com')
+

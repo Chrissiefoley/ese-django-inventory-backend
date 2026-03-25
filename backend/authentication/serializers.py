@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import User, UserInfo
 from django.db import transaction
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,3 +45,34 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'user_info')
+
+class UserProfileUpdateSerializer(serializers.Serializer):
+    avatar = serializers.URLField(required=False, allow_blank=True)
+    contact_info = serializers.CharField(required=False, max_length=100, allow_blank=True)
+    email = serializers.EmailField(required=False)
+
+    def validate_avatar(self, value):
+        if value:
+            validator = URLValidator()
+            try:
+                validator(value)
+            except DjangoValidationError:
+                raise serializers.ValidationError("Invalid URL format")
+
+            if 'cloudinary.com' not in value and value != '':
+                raise serializers.ValidationError("Avatar must be hosted on Cloudinary")
+        return value
+
+    def update(self, instance, validated_data):
+        if 'email' in validated_data:
+            instance.email = validated_data['email']
+            instance.save()
+
+        user_info = instance.user_info
+        if 'avatar' in validated_data:
+            user_info.avatar = validated_data['avatar']
+        if 'contact_info' in validated_data:
+            user_info.contact_info = validated_data['contact_info']
+        user_info.save()
+
+        return instance
