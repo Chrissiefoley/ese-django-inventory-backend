@@ -25,13 +25,13 @@ class RegisterView(generics.CreateAPIView):
             key='access_token',
             value=str(refresh.access_token),
             httponly=True,
-            samesite='Lax' # Or 'Strict'
+            samesite='Lax'
         )
         response.set_cookie(
             key='refresh_token',
             value=str(refresh),
             httponly=True,
-            samesite='Lax' # Or 'Strict'
+            samesite='Lax'
         )
 
         return response

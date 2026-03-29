@@ -17,16 +17,14 @@ class LoginView(TokenObtainPairView):
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                samesite='Lax' # Or 'Strict' depending on your needs
+                samesite='Lax'
             )
             response.set_cookie(
                 key='refresh_token',
                 value=refresh_token,
                 httponly=True,
-                samesite='Lax' # Or 'Strict'
+                samesite='Lax'
             )
-            # The user serializer is added to the response so the frontend can
-            # get user info without a separate request.
             username = request.data.get('username')
             user = User.objects.get(username=username)
             response.data = {
@@ -37,17 +35,19 @@ class LoginView(TokenObtainPairView):
 
 class RefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
-        # By default, TokenRefreshView looks for the refresh token in the request body.
-        # We override this to look in the cookies instead.
         refresh_token = request.COOKIES.get('refresh_token')
 
         if not refresh_token:
             return Response(
                 {'detail': 'Refresh token not found in cookies'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_401_UNAUTHORIZED
             )
 
-        request.data['refresh'] = refresh_token
+
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['refresh'] = refresh_token
+        request._full_data = data
+
         response = super().post(request, *args, **kwargs)
 
         if response.status_code == 200:
@@ -58,7 +58,6 @@ class RefreshView(TokenRefreshView):
                 httponly=True,
                 samesite='Lax'
             )
-            # We don't need to send the new access token in the body
             del response.data['access']
 
         return response

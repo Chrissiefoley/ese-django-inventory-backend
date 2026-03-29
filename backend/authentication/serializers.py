@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserInfo
+from .models import User, UserInfo, Staff
 from django.db import transaction
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -14,22 +14,29 @@ class RegisterSerializer(serializers.ModelSerializer):
     employee_id = serializers.CharField(write_only=True, required=True)
     contact_info = serializers.CharField(write_only=True, required=True)
     avatar = serializers.URLField(write_only=True, required=False, allow_blank=True)
-    role = serializers.CharField(write_only=True, required=True)
+
     class Meta:
         model = User
-        fields = ('username', 'password', 'email', 'role', 'employee_id', 'contact_info', 'avatar')
+        fields = ('username', 'password', 'email', 'employee_id', 'contact_info', 'avatar')
 
     def create(self, validated_data):
         employee_id = validated_data.pop('employee_id')
         contact_info = validated_data.pop('contact_info')
         avatar = validated_data.pop('avatar', '')
-        role = validated_data.pop('role')
+        email = validated_data.get('email', '')
+
+        is_verified = Staff.objects.filter(
+            employee_id=employee_id,
+            email=email
+        ).exists()
+
         with transaction.atomic():
             user = User.objects.create_user(
                 username=validated_data['username'],
-                email=validated_data.get('email', ''),
+                email=email,
                 password=validated_data['password'],
-                role=role
+                role='viewer',  
+                is_staff_verified=is_verified  
             )
             UserInfo.objects.create(
                 user=user,
@@ -44,7 +51,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'role', 'user_info')
+        fields = ('id', 'username', 'email', 'role', 'is_staff_verified', 'user_info')
 
 class UserProfileUpdateSerializer(serializers.Serializer):
     avatar = serializers.URLField(required=False, allow_blank=True)
