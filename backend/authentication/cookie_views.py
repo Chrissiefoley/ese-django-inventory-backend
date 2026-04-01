@@ -2,6 +2,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status, views
 from rest_framework.permissions import AllowAny
+from django.conf import settings
 from .serializers import UserSerializer
 from .models import User
 
@@ -17,13 +18,17 @@ class LoginView(TokenObtainPairView):
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                samesite='Lax'
+                secure=not settings.DEBUG,  # HTTPS only in production
+                samesite='Lax',
+                max_age=7200  # (2 hours to match the ACCESS_TOKEN_LIFETIME)
             )
             response.set_cookie(
                 key='refresh_token',
                 value=refresh_token,
                 httponly=True,
-                samesite='Lax'
+                secure=not settings.DEBUG,  # HTTPS only in production
+                samesite='Lax',
+                max_age=604800  # (7 days to match REFRESH_TOKEN_LIFETIME)
             )
             username = request.data.get('username')
             user = User.objects.get(username=username)
@@ -56,7 +61,9 @@ class RefreshView(TokenRefreshView):
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                samesite='Lax'
+                secure=not settings.DEBUG,  # HTTPS only in production
+                samesite='Lax',
+                max_age=7200  # (2 hours to match ACCESS_TOKEN_LIFETIME)
             )
             del response.data['access']
 
@@ -67,6 +74,6 @@ class LogoutView(views.APIView):
 
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
         return response

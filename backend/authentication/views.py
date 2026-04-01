@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, viewsets
+from django.conf import settings
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, UserProfileUpdateSerializer
 
@@ -25,13 +26,17 @@ class RegisterView(generics.CreateAPIView):
             key='access_token',
             value=str(refresh.access_token),
             httponly=True,
-            samesite='Lax'
+            secure=not settings.DEBUG,  # HTTPS only in production
+            samesite='Lax',
+            max_age=7200  # (2 hours to match ACCESS_TOKEN_LIFETIME)
         )
         response.set_cookie(
             key='refresh_token',
             value=str(refresh),
             httponly=True,
-            samesite='Lax'
+            secure=not settings.DEBUG,  # HTTPS only in production
+            samesite='Lax',
+            max_age=604800  # (7 days to match REFRESH_TOKEN_LIFETIME)
         )
 
         return response
