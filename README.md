@@ -125,7 +125,6 @@ backend/
 - User registration with employee verification
 - JWT authentication with httponly cookies
 - Profile management (avatar upload via Cloudinary)
-- Password reset (TODO - assignment requirement)
 
 ### 👥 Two-Layer Security Model
 
