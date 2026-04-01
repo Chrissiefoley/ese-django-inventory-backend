@@ -3,8 +3,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, viewsets
+from django.conf import settings
 from .models import User
-from .serializers import UserSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, UserProfileUpdateSerializer
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -16,11 +18,30 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+
+        response = Response({
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
+
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            httponly=True,
+            secure=not settings.DEBUG,  # HTTPS only in production
+            samesite='Lax',
+            max_age=7200  # (2 hours to match ACCESS_TOKEN_LIFETIME)
+        )
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            secure=not settings.DEBUG,  # HTTPS only in production
+            samesite='Lax',
+            max_age=604800  # (7 days to match REFRESH_TOKEN_LIFETIME)
+        )
+
+        return response
+
 
 class UserInfoView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -29,6 +50,19 @@ class UserInfoView(views.APIView):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data)
+
+    def patch(self, request):
+        user = request.user
+        serializer = UserProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(UserSerializer(user).data)
+
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
