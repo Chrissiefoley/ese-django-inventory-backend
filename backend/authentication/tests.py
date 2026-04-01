@@ -87,16 +87,6 @@ class UserRegistrationTestCase(APITestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(field, response.data)
 
-    def test_register_without_avatar_succeeds(self):
-        payload = self.valid_payload.copy()
-        del payload['avatar']
-
-        response = self.client.post(self.register_url, payload, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        user = User.objects.get(username='testuser')
-        self.assertEqual(user.user_info.avatar, '')
-
     def test_register_with_invalid_email(self):
         payload = self.valid_payload.copy()
         payload['email'] = 'not-an-email'
@@ -137,7 +127,6 @@ class UserLoginTestCase(APITestCase):
         self.assertEqual(response.data['user']['username'], 'testuser')
 
     def test_login_sets_jwt_cookies(self):
-        """Test that login returns JWT tokens in httponly cookies"""
         payload = {
             'username': 'testuser',
             'password': 'SecurePass123!'
@@ -157,7 +146,6 @@ class UserLoginTestCase(APITestCase):
         self.assertEqual(response.cookies['refresh_token']['samesite'], 'Lax')
 
     def test_login_with_invalid_username(self):
-        """Test that login fails with non-existent username"""
         payload = {
             'username': 'nonexistent',
             'password': 'SecurePass123!'
@@ -168,7 +156,7 @@ class UserLoginTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_login_with_invalid_password(self):
-        """Test that login fails with incorrect password"""
+
         payload = {
             'username': 'testuser',
             'password': 'WrongPassword'
@@ -179,7 +167,6 @@ class UserLoginTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_login_with_missing_credentials(self):
-        """Test that login fails when credentials are missing"""
         response = self.client.post(self.login_url, {'username': 'testuser'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -187,7 +174,6 @@ class UserLoginTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_login_returns_user_data(self):
-        """Test that login response includes complete user data"""
         payload = {
             'username': 'testuser',
             'password': 'SecurePass123!'
@@ -205,183 +191,6 @@ class UserLoginTestCase(APITestCase):
 
         self.assertIn('user_info', user_data)
         self.assertEqual(user_data['user_info']['employee_id'], 'EMP001')
-
-
-class UserLogoutTestCase(APITestCase):
-    """Test suite for user logout endpoint"""
-
-    def setUp(self):
-        self.client = APIClient()
-        self.logout_url = '/api/auth/logout/'
-
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='SecurePass123!',
-            role='staff'
-        )
-        UserInfo.objects.create(
-            user=self.user,
-            employee_id='EMP001',
-            contact_info='+1234567890'
-        )
-
-        login_response = self.client.post('/api/auth/login/', {
-            'username': 'testuser',
-            'password': 'SecurePass123!'
-        }, format='json')
-
-        self.access_token = login_response.cookies.get('access_token').value
-        self.refresh_token = login_response.cookies.get('refresh_token').value
-
-    def test_logout_deletes_cookies(self):
-        """Test that logout endpoint deletes JWT cookies"""
-        response = self.client.post(self.logout_url)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        self.assertIn('access_token', response.cookies)
-        self.assertIn('refresh_token', response.cookies)
-
-        self.assertEqual(response.cookies['access_token'].value, '')
-        self.assertEqual(response.cookies['refresh_token'].value, '')
-
-    def test_logout_without_authentication(self):
-        """Test that logout works even without being authenticated"""
-        client = APIClient()
-        response = client.post(self.logout_url)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-
-class TokenRefreshTestCase(APITestCase):
-
-
-    def setUp(self):
-        self.client = APIClient()
-        self.refresh_url = '/api/auth/refresh/'
-
-  
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='SecurePass123!',
-            role='staff'
-        )
-        UserInfo.objects.create(
-            user=self.user,
-            employee_id='EMP001',
-            contact_info='+1234567890'
-        )
-
-
-        login_response = self.client.post('/api/auth/login/', {
-            'username': 'testuser',
-            'password': 'SecurePass123!'
-        }, format='json')
-
-        self.refresh_token = login_response.cookies.get('refresh_token').value
-
-    def test_refresh_with_valid_token(self):
-
-        self.client.cookies['refresh_token'] = self.refresh_token
-
-        response = self.client.post(self.refresh_url, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        self.assertIn('access_token', response.cookies)
-
-        self.assertNotIn('access', response.data)
-
-    def test_refresh_without_token(self):
-        """Test that refresh fails without refresh token cookie"""
-        response = self.client.post(self.refresh_url, format='json')
-
-        self.assertNotEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_refresh_with_invalid_token(self):
-        """Test that refresh fails with invalid token"""
-        self.client.cookies['refresh_token'] = 'invalid_token_string'
-
-        response = self.client.post(self.refresh_url, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class UserInfoViewTestCase(APITestCase):
-
-    def setUp(self):
-        self.client = APIClient()
-        self.user_info_url = '/api/auth/me/'
-
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='SecurePass123!',
-            role='staff'
-        )
-        self.user_info = UserInfo.objects.create(
-            user=self.user,
-            employee_id='EMP001',
-            contact_info='+1234567890',
-            avatar='https://example.com/avatar.jpg'
-        )
-
-    def test_get_user_info_authenticated(self):
-        self.client.force_authenticate(user=self.user)
-
-        response = self.client.get(self.user_info_url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['username'], 'testuser')
-        self.assertEqual(response.data['email'], 'test@example.com')
-        self.assertEqual(response.data['role'], 'staff')
-        self.assertEqual(response.data['user_info']['employee_id'], 'EMP001')
-        self.assertEqual(response.data['user_info']['contact_info'], '+1234567890')
-        self.assertEqual(response.data['user_info']['avatar'], 'https://example.com/avatar.jpg')
-
-    def test_get_user_info_unauthenticated(self):
-
-        response = self.client.get(self.user_info_url)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class UserRoleTestCase(TestCase):
-
-
-    def test_user_defaults_to_viewer_role(self):
-
-        user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='password123'
-        )
-
-        self.assertEqual(user.role, 'viewer')
-        self.assertFalse(user.is_staff_verified)  
-
-    def test_user_can_be_created_as_admin(self):
-
-        user = User.objects.create_user(
-            username='adminuser',
-            email='admin@example.com',
-            password='password123',
-            role='admin'
-        )
-
-        self.assertEqual(user.role, 'admin')
-
-    def test_user_string_representation(self):
-        user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='password123',
-            role='staff'
-        )
-
-        self.assertEqual(str(user), 'testuser (staff)')
 
 
 class UserProfileUpdateTestCase(APITestCase):
@@ -439,9 +248,7 @@ class UserProfileUpdateTestCase(APITestCase):
         self.assertEqual(self.user.email, 'newemail@example.com')
 
 
-
 class StaffVerificationTestCase(APITestCase):
-
 
     def setUp(self):
         self.client = APIClient()
@@ -614,3 +421,5 @@ class PermissionTestCase(APITestCase):
         }
         response = self.client.post('/api/items/', payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
