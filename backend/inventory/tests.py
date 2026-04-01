@@ -1,8 +1,6 @@
-from django.test import TestCase
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.contrib.auth import get_user_model
-from unittest.mock import patch
 from .models import Item
 from authentication.models import Staff
 
@@ -98,5 +96,3 @@ class InventoryItemTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Item.objects.count(), 0)
-
-

@@ -18,11 +18,10 @@ class Staff(models.Model):
 
 class User(AbstractUser):
     ROLES = (
-        ('viewer', 'Viewer'),
         ('staff', 'Staff'),
         ('admin', 'Admin'),
     )
-    role = models.CharField(choices=ROLES, max_length=20, default='viewer')
+    role = models.CharField(choices=ROLES, max_length=20, default='staff')
     is_staff_verified = models.BooleanField(default=False)
 
     def __str__(self):
@@ -32,7 +31,7 @@ class User(AbstractUser):
 class UserInfo(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_info')
     employee_id = models.CharField(max_length=20, unique=True)
-    contact_info = models.CharField(max_length=20, blank=True)
+    contact_info = models.CharField(max_length=100, blank=True)
     avatar = models.URLField(max_length=200, blank=True)
 
     def __str__(self):

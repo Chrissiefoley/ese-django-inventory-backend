@@ -1,5 +1,4 @@
 import os
-import ssl
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
@@ -33,15 +32,16 @@ try:
         from_email=from_email,
         to_emails=to_email,
         subject='SendGrid Test Email from Django Backend',
-        html_content='<strong>This is a test email from your ESE inventory system!</strong><br><br>If you received this, SendGrid is configured correctly.'
+        html_content=('<strong>This is a test email from your ESE inventory system!</strong>'
+                      '<br><br>If you received this, SendGrid is configured correctly.')
     )
 
     print(f"\nAttempting to send email from {from_email} to {to_email}...")
     response = sg.send(message)
 
-    print(f"\n✅ Email sent successfully!")
-    print(f"Status Code: {response.status_code}")
-    print(f"Message ID: {response.headers.get('X-Message-Id', 'N/A')}")
+    print("\n✅ Email sent successfully!")
+    print("Status Code: {}".format(response.status_code))
+    print("Message ID: {}".format(response.headers.get('X-Message-Id', 'N/A')))
 
     if response.status_code == 202:
         print("\n🎉 Success! Check your inbox at", to_email)

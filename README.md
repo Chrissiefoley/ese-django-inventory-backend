@@ -1,8 +1,8 @@
 # ESE Inventory Backend
 
-> Enterprise inventory management system with two-layer staff verification and role-based access control
+> Django REST API with JWT authentication and role-based access control for inventory management
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
@@ -10,177 +10,162 @@
 - [Getting Started](#getting-started)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
-- [Deployment](#deployment)
 - [Security](#security)
+- [Technical Decisions](#technical-decisions)
+- [AI Statement](#ai-statement)
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ### System Design
-
-**This repository contains the Django REST API backend. The architecture diagram below shows how it fits into the full system:**
 
 ```
 ┌─────────────────────┐
 │  Frontend Client    │
-│  (React - separate  │
-│   repository)       │
+│  (React + TypeScript│
+│   - Port 3000)      │
 └──────────┬──────────┘
-           │ REST API Calls
-           │ (JWT in HttpOnly Cookies)
+           │ REST API calls (Axios)
+           │ JWT in httponly cookies
 ┌──────────┴──────────┐
-│   Django Backend    │  ← THIS REPOSITORY
+│   Django Backend    │  
 │   REST API          │
 │   (Port 8000)       │
 └──────────┬──────────┘
-           │ ORM Queries
+           │ Django ORM
 ┌──────────┴──────────┐
 │     Database        │
-│ SQLite (Dev) /      │
-│ PostgreSQL (Prod)   │
+│ SQLite (Dev)        │
 └─────────────────────┘
 ```
 
-**Authentication Flow:**
+### Authentication Flow
+
 ```
-1. User Registration
-   └─> Check Staff whitelist (employee_id + email)
-       ├─> Match found: is_staff_verified = True
-       └─> No match: is_staff_verified = False
+1. Registration Flow
+   User registers → Backend checks Staff table (employee_id + email)
+   ├─ Match found → is_staff_verified = True, role = 'staff' (immediate full access)
+   └─ No match → Registration rejected
 
-2. Default Role Assignment
-   └─> All new users get role = 'viewer'
-
-3. Admin Promotion (via Django Admin)
-   └─> Admin manually changes role to 'staff' or 'admin'
-
-4. Access Control (Two Layers)
-   └─> Layer 1: Must have is_staff_verified = True
-       └─> Layer 2: Role determines permissions
-           ├─> viewer: Read-only access
-           ├─> staff: Can create/edit/delete
-           └─> admin: Full system access
+2. Access Control
+   Verified staff users have full CRUD access to inventory
+   Admins additionally have user management capabilities
 ```
 
-**Separation of Concerns:**
-- **Authentication App:** User management, staff verification, JWT auth, profile management
-- **Inventory App:** Product CRUD, category management, image handling
-- **Backend App:** Configuration, URL routing, settings management
+**Why Two Layers?**
+- **Staff verification** ensures only company employees can register
+- **Roles** provide granular permission control within verified users
+- **Separation of concerns** - identity verification vs. authorization
 
 ### Project Structure
 
 ```
 backend/
-├── authentication/          # User auth, staff verification, JWT
+├── authentication/          # User management & JWT auth
 │   ├── models.py           # User, Staff, UserInfo models
-│   ├── permissions.py      # Custom permission classes
-│   ├── serializers.py      # Registration, profile update
-│   └── tests.py            # 34 authentication tests
-├── inventory/              # Item CRUD operations
+│   ├── serializers.py      # Registration, profile, validation
+│   ├── views.py            # Auth endpoints
+│   ├── permissions.py      # IsStaffVerified permission class
+│   ├── cookie_views.py     # JWT cookie handlers
+│   └── tests.py            # 22 authentication tests
+├── inventory/              # Product CRUD operations
 │   ├── models.py           # Item model
+│   ├── serializers.py      # Item validation
 │   ├── views.py            # ItemViewSet with permissions
-│   └── tests.py            # Inventory tests (TODO)
-└── backend/                # Django settings
-    ├── settings.py         # Configuration
+│   ├── signals.py          # Low stock email alerts
+│   └── tests.py            # 8 inventory tests
+└── backend/                # Django configuration
+    ├── settings.py         # App configuration
     └── urls.py             # API routing
 ```
 
-**Why Separate Apps:**
-- **Modularity:** Each app handles one business domain
-- **Reusability:** Authentication can be extracted for other projects
-- **Maintainability:** Clear boundaries make code easier to understand
-- **Testing:** Apps can be tested independently
+**App Separation Rationale:**
+- **authentication/** - Reusable auth module (can extract for other projects)
+- **inventory/** - Business logic for inventory domain
+- **backend/** - Configuration and routing only
 
 ---
 
 ## 🛠 Tech Stack
 
 ### Core Framework
-- **Django 6.0.2** - Mature, enterprise-grade framework with excellent ORM and admin interface
-- **Django REST Framework** - Provides ViewSets (CRUD operations in ~10 lines), Serializers (validation + data transformation), and built-in permission system
-- **Python 3.14** - Latest Python version with improved error messages and performance
+- **Django 6.0.2** - Modern web framework with robust ORM and admin panel
+- **Django REST Framework 3.15.2** - RESTful API toolkit (ViewSets, Serializers, Permissions)
+- **Python 3.14** - Latest Python with enhanced error messages
 
 ### Authentication & Security
-- **djangorestframework-simplejwt** - JWT token management with access/refresh token pattern
-- **django-cors-headers** - Allows React frontend to communicate with Django backend across different ports
-- **Cookie-based JWT storage** - HttpOnly cookies prevent XSS attacks by making tokens inaccessible to JavaScript
+- **djangorestframework-simplejwt 5.3.1** - JWT token management (access + refresh tokens)
+- **django-cors-headers 4.3.1** - Cross-origin request handling for React frontend
+- **Cookie-based JWT storage** - Httponly cookies prevent XSS token theft
 
 ### Database
-- **SQLite** (Development)
-- **PostgreSQL** (Production - TODO for deployment)
+- **SQLite** (Development) - Zero-config, file-based database
+- **PostgreSQL** (Production ready) - Can migrate with minimal code changes
 
 ### Testing
-- **Django TestCase** - Unit tests
-- **APITestCase** - Integration tests
-- **34 passing tests** covering authentication flows
-
-**Test Coverage:** 34 authentication tests covering all critical user flows including registration, login, staff verification, and permission checks
+- **Django TestCase** - Database-backed unit tests
+- **APITestCase** - REST API integration tests
+- **30 total tests** (22 auth + 8 inventory)
 
 ---
 
 ## Key Features
 
-### Enterprise Authentication
-- User registration with employee verification
-- JWT authentication with httponly cookies
-- Profile management (avatar upload via Cloudinary)
+### Authentication & Authorization
 
-### 👥 Two-Layer Security Model
+**Staff Verification System:**
+- Registration requires matching Staff table record (employee_id + email)
+- Automatic verification on match
+- Prevents unauthorised user registration
 
-**Layer 1: Staff Verification**
-```python
-# During registration:
-is_verified = Staff.objects.filter(
-    employee_id=employee_id,
-    email=email
-).exists()
-```
+**JWT Cookie Authentication:**
+- Access tokens (2-hour expiry)
+- Refresh tokens (7-day expiry)
+- Httponly + Secure + SameSite flags
+- Automatic token refresh 
 
-**Layer 2: Role-Based Permissions**
-- **Viewer** - Read-only access to inventory
-- **Staff** - Create, update, delete products
-- **Admin** - Full system access
+### Inventory Management
 
-**Permissions Matrix:**
+**CRUD Operations:**
+- ✅ Create items with duplicate name prevention
+- ✅ Read items with filtering support
+- ✅ Update stock counts and product details
+- ✅ Delete items with cascade handling
 
-| Action | Unverified | Viewer | Staff | Admin |
-|--------|:----------:|:------:|:-----:|:-----:|
-| View inventory | ❌ | ✅ | ✅ | ✅ |
-| Create products | ❌ | ❌ | ✅ | ✅ |
-| Edit products | ❌ | ❌ | ✅ | ✅ |
-| Delete products | ❌ | ❌ | ✅ | ✅ |
-| Manage users | ❌ | ❌ | ❌ | ✅ |
+**Business Logic:**
+- Unique product names (database constraint)
+- Low stock alerts (signals trigger at count < 10)
+- Category management with dynamic filtering
+- Decimal price handling (10 digits, 2 decimal places)
 
-### 📦 Inventory Management (CRUD)
-- [x] Create products with duplicate name validation
-- [x] Read inventory with category filtering
-- [x] Update stock counts and product images
-- [x] Delete products with confirmation
-- [x] Image upload via Cloudinary URLs
-- [x] Category management for menu filters
-
-**Key Implementation Details:**
-- Duplicate product names are prevented via unique constraint
-- Images stored as Cloudinary URLs (no server storage needed)
-- Category management uses existing categories with "Add new" option
-- Low stock warnings automatically shown for items with count < 10
+### Profile Management
+- Avatar upload via Cloudinary 
+- Contact information editing (max 100 characters)
+- Email updates with validation
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
 ```bash
-# Check Python version
 python3 --version  # Should be 3.14+
-
-# Install dependencies
-pip install -r requirements.txt
+pip --version      # pip3 should be available
 ```
 
-**Create `requirements.txt`:**
+### Installation
+
+```bash
+# Navigate to backend directory
+cd backend/
+
+# Install dependencies
+pip3 install -r requirements.txt
+```
+
+**requirements.txt:**
 ```
 Django==6.0.2
 djangorestframework==3.15.2
@@ -189,59 +174,58 @@ django-cors-headers==4.3.1
 python-decouple==3.8
 ```
 
-Install all dependencies:
-```bash
-pip install -r requirements.txt
-```
+### Environment Configuration
 
-### Environment Variables
-
-Create a `.env` file in the `backend/` directory:
+Create `.env` in `backend/` directory:
 
 ```env
-SECRET_KEY=your-secret-key-here
+SECRET_KEY=your-secret-key-here-change-in-production
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# CORS Settings
+# CORS Settings (React frontend)
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 
-# TODO: Add database credentials for production
-# DATABASE_URL=postgres://...
+# Email Settings (for low stock alerts)
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 ```
 
-**SECURITY WARNING:** Never commit `.env` to git! Add it to `.gitignore`
+**Security Note:**
+- Generate a new `SECRET_KEY` for production: `python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`
+- Never commit `.env` to version control
 
 ### Database Setup
 
 ```bash
-cd backend/
-
 # Run migrations
 python3 manage.py migrate
 
-# Create superuser for admin access
+# Create superuser for admin panel access
 python3 manage.py createsuperuser
+
+# Add staff records (for user verification)
+python3 manage.py shell
+>>> from authentication.models import Staff
+>>> Staff.objects.create(
+...     employee_id='EMP001',
+...     full_name='John Doe',
+...     email='john@company.com'
+... )
 ```
 
-### Running the Server
+### Run Development Server
 
 ```bash
-# Development server
 python3 manage.py runserver
 
-# Server runs at http://localhost:8000
-# Admin panel at http://localhost:8000/admin
+# Server runs at: http://localhost:8000
+# Admin panel at: http://localhost:8000/admin
+# API docs at: http://localhost:8000/api/
 ```
-
-**Port Configuration:**
-- Backend runs on **port 8000** (Django default)
-- Frontend runs on **port 3000** (React default)
-- Admin panel accessible at http://localhost:8000/admin
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 ### Base URL
 ```
@@ -250,7 +234,7 @@ http://localhost:8000/api/
 
 ### Authentication Endpoints
 
-#### Register
+#### Register New User
 ```http
 POST /api/auth/register/
 Content-Type: application/json
@@ -258,29 +242,20 @@ Content-Type: application/json
 {
   "username": "johndoe",
   "email": "john@company.com",
-  "password": "SecurePass123!",
+  "password": "SecurePass123",
   "employee_id": "EMP001",
   "contact_info": "+1234567890"
 }
 ```
 
-**Response:**
-```json
-{
-  "user": {
-    "id": 1,
-    "username": "johndoe",
-    "email": "john@company.com",
-    "role": "viewer",
-    "is_staff_verified": true,
-    "user_info": {
-      "employee_id": "EMP001",
-      "contact_info": "+1234567890",
-      "avatar": ""
-    }
-  }
-}
-```
+**Validation Rules:**
+- Password: Min 8 chars, uppercase, lowercase, number
+- employee_id + email must match Staff table record
+- Username must be unique
+
+**Sets Cookies:**
+- `access_token` (httponly, secure, samesite=Lax, max_age=7200s)
+- `refresh_token` (httponly, secure, samesite=Lax, max_age=604800s)
 
 #### Login
 ```http
@@ -288,40 +263,42 @@ POST /api/auth/login/
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "password": "admin123"
+  "username": "johndoe",
+  "password": "SecurePass123"
 }
 ```
 
-**Response:** Sets JWT cookies and returns user data
+**Response:** Returns user data + sets JWT cookies
 
 #### Logout
 ```http
 POST /api/auth/logout/
+Cookie: access_token=...
 ```
 
-**Response:** Deletes JWT cookies
+**Response:** Deletes cookies (max_age=0)
 
-#### Refresh Token
+#### Refresh Access Token
 ```http
 POST /api/auth/refresh/
+Cookie: refresh_token=...
 ```
 
-**Response:** Issues new access token using refresh token from cookie
+**Response:** Issues new access token using valid refresh token
 
 #### Get Current User
 ```http
 GET /api/auth/me/
-Authorization: Cookie (access_token)
+Cookie: access_token=...
 ```
 
 **Response:**
 ```json
 {
   "id": 1,
-  "username": "admin",
-  "email": "admin@test.com",
-  "role": "admin",
+  "username": "johndoe",
+  "email": "john@company.com",
+  "role": "staff",
   "is_staff_verified": true,
   "user_info": {
     "employee_id": "EMP001",
@@ -331,28 +308,53 @@ Authorization: Cookie (access_token)
 }
 ```
 
-#### Update Profile
+#### Update User Profile
 ```http
 PATCH /api/auth/me/
+Cookie: access_token=...
 Content-Type: application/json
 
 {
-  "avatar": "https://res.cloudinary.com/new-avatar.jpg"
+  "avatar": "https://res.cloudinary.com/new-avatar.jpg",
+  "contact_info": "+44 7700 900123"
 }
 ```
 
+**Validation:**
+- Avatar must be Cloudinary URL
+- contact_info max 100 characters
+
+---
+
 ### Inventory Endpoints
 
-#### List Items
+#### List All Items
 ```http
 GET /api/items/
-Authorization: Cookie (access_token)
+Cookie: access_token=...
+```
+
+**Required:** Authenticated + is_staff_verified=True
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Laptop",
+    "description": "High-performance laptop",
+    "category": "Electronics",
+    "count": 10,
+    "price": "999.99",
+    "image": "https://res.cloudinary.com/..."
+  }
+]
 ```
 
 #### Create Item
 ```http
 POST /api/items/
-Authorization: Cookie (access_token)
+Cookie: access_token=...
 Content-Type: application/json
 
 {
@@ -365,17 +367,17 @@ Content-Type: application/json
 }
 ```
 
-**Required Permission:** Staff or Admin
+**Required Permission:** is_staff_verified=True
 
-#### Get Single Item
-```http
-GET /api/items/1/
-Authorization: Cookie (access_token)
-```
+**Validation:**
+- Name must be unique
+- Price: max 10 digits, 2 decimal places
+- Count: integer >= 0
 
-#### Update Item
+#### Update Item (Partial)
 ```http
 PATCH /api/items/1/
+Cookie: access_token=...
 Content-Type: application/json
 
 {
@@ -383,14 +385,17 @@ Content-Type: application/json
 }
 ```
 
-**Required Permission:** Staff or Admin
+**Required Permission:** is_staff_verified=True
 
 #### Delete Item
 ```http
 DELETE /api/items/1/
+Cookie: access_token=...
 ```
 
-**Required Permission:** Staff or Admin
+**Required Permission:** is_staff_verified=True
+
+**Response:** 204 No Content
 
 ---
 
@@ -401,192 +406,116 @@ DELETE /api/items/1/
 python3 manage.py test
 ```
 
+**Output:**
+```
+Ran 30 tests in 13.5s
+OK
+```
+
 ### Run Specific Test Suites
 ```bash
-# Authentication tests (34 tests)
-python3 manage.py test authentication.tests
+# Authentication tests (22 tests)
+python3 manage.py test authentication
 
-# Inventory tests
-python3 manage.py test inventory.tests
+# Inventory tests (8 tests)
+python3 manage.py test inventory
 ```
 
 ### Test Coverage
 
-**Current Test Results:**
-- **34 authentication tests** - All passing ✅
-- **Coverage:** Authentication flows, staff verification, role permissions
-- **Test Categories:**
-  - User registration with staff verification
-  - Login/logout flows
-  - JWT token refresh
-  - Profile updates
-  - Permission-based access control
+**Authentication Tests:**
+- User registration
+- Login/logout JWT cookie handling
+- Token refresh 
+- Permission checks (IsStaffVerified)
+- Cookie security (httponly, secure, max_age)
 
-### Key Test Cases
-
-**Critical Test Cases Covered:**
-
-1. **Staff Verification Tests:**
-   - Matching employee_id + email → User verified ✅
-   - Wrong email → User not verified ✅
-   - Non-existent employee → User not verified ✅
-
-2. **Permission Tests:**
-   - Verified viewer can view inventory ✅
-   - Verified viewer cannot create items ✅
-   - Verified staff can create items ✅
-   - Unverified users blocked from all inventory access ✅
-
-3. **Authentication Tests:**
-   - Registration creates user with correct role ✅
-   - Login returns JWT cookies ✅
-   - Token refresh works with valid cookie ✅
-   - Profile updates work for authenticated users ✅
+**Inventory Tests:**
+- Item CRUD operations (create, read, update, delete)
+- Unique name constraint
+- Permission enforcement (unverified users blocked)
+- Low stock signal triggers (count < 10)
 
 ---
 
-## 🚢 Deployment
+### Permission System
 
-### Production Checklist
-
-**Production Deployment Checklist:**
-
-1. **Environment Configuration:**
-   - [ ] Set `DEBUG=False` in production
-   - [ ] Generate new `SECRET_KEY` for production
-   - [ ] Configure `ALLOWED_HOSTS` with your domain
-
-2. **Database:**
-   - [ ] Migrate from SQLite to PostgreSQL
-   - [ ] Run `python manage.py migrate` on production database
-   - [ ] Create superuser for production admin access
-
-3. **Security:**
-   - [ ] Set up environment variables securely (use platform's secrets)
-   - [ ] Configure HTTPS (redirect HTTP to HTTPS)
-   - [ ] Update `CORS_ALLOWED_ORIGINS` with production frontend URL
-   - [ ] Set secure cookie flags: `SESSION_COOKIE_SECURE = True`
-
-4. **Static Files:**
-   - [ ] Run `python manage.py collectstatic`
-   - [ ] Configure static file serving (Whitenoise or CDN)
-
-5. **Monitoring:**
-   - [ ] Set up error logging (Sentry recommended)
-   - [ ] Monitor database connections
-   - [ ] Set up health check endpoint
-
-### Deployment Platforms
-
-**Options to consider:**
-- **Railway** - Easiest for Django + Postgres
-- **Render** - Free tier available
-- **Heroku** - Industry standard
-- **AWS/GCP** - Enterprise scale
-
-**Recommended Platform: Railway**
-
-**Why Railway:**
-- Automatic PostgreSQL provisioning
-- Zero-config deployment (detects Django automatically)
-- Built-in environment variable management
-- Free tier suitable for development/demo
-- Easy scaling when needed
-
-**Alternative Options:**
-- **Render** - Similar to Railway, good free tier
-- **Heroku** - Industry standard but requires credit card
-- **AWS/GCP** - Enterprise scale but more complex setup
-
-### Database Migrations in Production
-
-```bash
-# CRITICAL: Always backup before migrating
-python3 manage.py migrate --check
-python3 manage.py migrate
-```
-
----
-
-## 🔒 Security
-
-### Authentication Flow
-
-```
-1. User registers with employee_id + email
-2. System checks Staff whitelist
-3. Sets is_staff_verified = True/False
-4. Creates user with role='viewer' (default)
-5. Admin manually promotes to 'staff' or 'admin' via Django admin
-```
-
-**Authentication Sequence:**
-```
-User → Frontend: Register with employee_id + email
-Frontend → Backend: POST /api/auth/register/
-Backend → Staff DB: Query(employee_id, email)
-Staff DB → Backend: Match found/not found
-Backend: Create User(is_staff_verified=True/False, role='viewer')
-Backend → Frontend: Return user data + JWT cookies
-Frontend: Store cookies (httponly, automatic)
-Frontend: User can login and access based on verification + role
-```
-
-### Security Features
-
-- **Two-layer verification** - Must be in Staff whitelist AND have proper role
-- **JWT in HttpOnly cookies** - Protection against XSS attacks
-- **CORS configuration** - Only allowed origins can access API
-- **Unique product names** - Prevents duplicate inventory entries
-- **Role-based permissions** - Fine-grained access control
-
-**Security Decision Rationale:**
-
-1. **HttpOnly Cookies for JWT:**
-   - **Threat:** XSS attacks can steal tokens from localStorage
-   - **Mitigation:** HttpOnly cookies are inaccessible to JavaScript
-
-2. **Two-Layer Verification:**
-   - **Threat:** User creates account with fake employee_id
-   - **Mitigation:** Must match Staff whitelist to get verified
-   - **Threat:** Verified user shouldn't have full access immediately
-   - **Mitigation:** Starts as 'viewer', admin promotes manually
-
-3. **Unique Product Names:**
-   - **Threat:** Duplicate entries cause inventory confusion
-   - **Mitigation:** Database constraint prevents duplicates
-
-4. **CORS Whitelist:**
-   - **Threat:** Malicious sites could make requests to your API
-   - **Mitigation:** Only allowed origins can access endpoints
-
-
----
-
-### Adding New Features
-
-**Example: Adding a new field to Item model**
-
+**Custom Permission Class:**
 ```python
-# 1. Update models.py
-class Item(models.Model):
-    # ... existing fields
-    supplier = models.CharField(max_length=100, blank=True)
-
-# 2. Create migration
-python3 manage.py makemigrations
-
-# 3. Apply migration
-python3 manage.py migrate
-
-# 4. Update serializer
-# 5. Write tests
-# 6. Update API documentation
+# permissions.py
+class IsStaffVerified(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated and
+            request.user.is_staff_verified
+        )
 ```
 
-Extending the project : 
+**Result:**
+- Unverified users → 403 Forbidden
+- Verified users → Access granted
+- Enforced at API layer (cannot be bypassed by frontend)
+
+### Input Validation
+
+**Password Validation:**
+```python
+def validate_password(self, value):
+    if len(value) < 8:
+        raise ValidationError("Min 8 characters")
+    if not any(c.isupper() for c in value):
+        raise ValidationError("Must have uppercase letter")
+    if not any(c.islower() for c in value):
+        raise ValidationError("Must have lowercase letter")
+    if not any(c.isdigit() for c in value):
+        raise ValidationError("Must have number")
+    return value
+```
+
+**Database Constraints:**
+```python
+class Item(models.Model):
+    name = models.CharField(max_length=100, unique=True)  - To prevent dupilcates
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+```
+---
+
+
+### Automatic Verification on Registration
+
+**Decision:** Set `is_staff_verified=True` immediately if Staff match found
+
+**Rationale:**
+- Better user experience (no waiting for admin)
+- Staff table is the source of truth
+- Admin time saved (no manual verification queue)
+- Secure (only company employees can register)
+
+**Alternative Considered:** Manual admin approval (rejected - unnecessary bottleneck as alternative found to check database for employee ID and email)
+
+
+###  Signal-Based Low Stock Alerts
+
+**Decision:** Use Django signals for low stock email notifications
+
+**Rationale:**
+- Decoupled from business logic (inventory views don't handle emails)
+- Automatic triggers (no manual checks needed)
+- Easy to disable (disconnect signal)
+- Extensible (add more signals for other events)
+
 
 ---
 
-Please note: 
-This README was created with assistance from Claude Code (Anthropic) to review the project structure and implementation details.
+## AI Statement
+
+### Use of Generative AI Tools
+
+This project was developed with assistance from **Claude Code (Anthropic)/ Windsurf** as a learning and development aid. AI tools were used throughout the development process, primarily for learning and understanding complex concepts included JWT auth/cookie handling, and helping with debugging and test creation. Finally, documentation was enhanced using AI assistance and aided solving linting issues prior to deployment.
+It should be noted that all code was reviewed, clarified and understood before being committed.
+
+Through video submission, details of code, architecture and concept implementation is proven. 
+
+
+**Project Repository:** https://github.com/Chrissiefoley/ese-django-inventory-backend.git
+**Frontend Repository:** https://github.com/Chrissiefoley/ese-react-inventory-frontend.git

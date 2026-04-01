@@ -6,6 +6,7 @@ from django.conf import settings
 from .serializers import UserSerializer
 from .models import User
 
+
 class LoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -13,7 +14,6 @@ class LoginView(TokenObtainPairView):
         if response.status_code == 200:
             access_token = response.data.get('access')
             refresh_token = response.data.get('refresh')
-            
             response.set_cookie(
                 key='access_token',
                 value=access_token,
@@ -38,6 +38,7 @@ class LoginView(TokenObtainPairView):
 
         return response
 
+
 class RefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get('refresh_token')
@@ -47,7 +48,6 @@ class RefreshView(TokenRefreshView):
                 {'detail': 'Refresh token not found in cookies'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
 
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         data['refresh'] = refresh_token
@@ -68,6 +68,7 @@ class RefreshView(TokenRefreshView):
             del response.data['access']
 
         return response
+
 
 class LogoutView(views.APIView):
     permission_classes = [AllowAny]

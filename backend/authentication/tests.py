@@ -1,4 +1,3 @@
-from django.test import TestCase
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.contrib.auth import get_user_model
@@ -36,8 +35,8 @@ class UserRegistrationTestCase(APITestCase):
         self.assertIn('user', response.data)
         self.assertEqual(response.data['user']['username'], 'testuser')
         self.assertEqual(response.data['user']['email'], 'test@example.com')
-        self.assertEqual(response.data['user']['role'], 'viewer')  
-        self.assertTrue(response.data['user']['is_staff_verified'])  
+        self.assertEqual(response.data['user']['role'], 'staff')
+        self.assertTrue(response.data['user']['is_staff_verified'])
 
         self.assertEqual(User.objects.count(), 1)
         user = User.objects.get(username='testuser')
@@ -73,7 +72,6 @@ class UserRegistrationTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(User.objects.count(), 1)
-
 
     def test_register_with_missing_required_fields(self):
         required_fields = ['username', 'password', 'employee_id']
@@ -226,7 +224,6 @@ class UserProfileUpdateTestCase(APITestCase):
 
         self.assertEqual(response.data['user_info']['avatar'], payload['avatar'])
 
-
     def test_update_contact_info(self):
         self.client.force_authenticate(user=self.user)
 
@@ -253,7 +250,6 @@ class StaffVerificationTestCase(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.register_url = '/api/auth/register/'
-
 
         Staff.objects.create(
             employee_id='EMP001',
@@ -282,11 +278,10 @@ class StaffVerificationTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(username='johndoe')
-        self.assertTrue(user.is_staff_verified)  
-        self.assertEqual(user.role, 'viewer')  
+        self.assertTrue(user.is_staff_verified)
+        self.assertEqual(user.role, 'staff')
 
     def test_register_with_wrong_email(self):
-
         payload = {
             'username': 'johndoe',
             'email': 'wrong@email.com',
@@ -338,7 +333,6 @@ class PermissionTestCase(APITestCase):
 
     def setUp(self):
         self.client = APIClient()
-
 
         self.verified_admin = User.objects.create_user(
             username='admin',
@@ -421,5 +415,3 @@ class PermissionTestCase(APITestCase):
         }
         response = self.client.post('/api/items/', payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-

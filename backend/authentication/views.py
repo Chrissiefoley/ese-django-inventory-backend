@@ -7,6 +7,7 @@ from django.conf import settings
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, UserProfileUpdateSerializer
 
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
@@ -41,6 +42,7 @@ class RegisterView(generics.CreateAPIView):
 
         return response
 
+
 class UserInfoView(views.APIView):
     permission_classes = [IsAuthenticated]
 
@@ -60,6 +62,7 @@ class UserInfoView(views.APIView):
         serializer.save()
 
         return Response(UserSerializer(user).data)
+
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()

@@ -4,10 +4,12 @@ from django.db import transaction
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 
+
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserInfo
         fields = ('employee_id', 'contact_info', 'avatar')
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=8)
@@ -61,7 +63,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 username=validated_data['username'],
                 email=email,
                 password=validated_data['password'],
-                role='viewer',
+                role='staff',
                 is_staff_verified=True
             )
             UserInfo.objects.create(
@@ -72,12 +74,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
         return user
 
+
 class UserSerializer(serializers.ModelSerializer):
     user_info = UserInfoSerializer()
 
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'is_staff_verified', 'user_info')
+
 
 class UserProfileUpdateSerializer(serializers.Serializer):
     avatar = serializers.URLField(required=False, allow_blank=True)

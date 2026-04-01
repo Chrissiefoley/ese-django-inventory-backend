@@ -10,8 +10,9 @@ load_dotenv()
 ssl._create_default_https_context = ssl._create_unverified_context
 
 api_key = os.environ.get('SENDGRID_API_KEY')
-from_email = os.environ.get('DEFAULT_FROM_EMAIL') 
+from_email = os.environ.get('DEFAULT_FROM_EMAIL')
 to_email = os.environ.get('TO_EMAIL')
+
 
 def send_email():
     message = Mail(
@@ -27,4 +28,4 @@ def send_email():
         print(response.body)
         print(response.headers)
     except Exception as e:
-        print(str(e))  
+        print(str(e))
