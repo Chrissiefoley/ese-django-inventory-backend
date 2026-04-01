@@ -138,15 +138,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # CORS settings
-
-# This is the URL where the frontend will be running
-# We only allow requests from this URL
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8080',
-]
-
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:5173,http://localhost:3000,http://localhost:8080',
+    cast=Csv()
+)
 CORS_ALLOW_CREDENTIALS = True
 
 # SendGrid Email Settings
