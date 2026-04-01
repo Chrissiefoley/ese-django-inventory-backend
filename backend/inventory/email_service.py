@@ -3,6 +3,7 @@ from sendgrid.helpers.mail import Mail
 from django.conf import settings
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +38,7 @@ def send_low_stock_alert(item_name, current_stock, user_email):
                         </p>
                         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
                         <p style="font-size: 12px; color: #6c757d;">
-                            This is an automated alert from the ESE Inventory Management System.
+                            This is an automated alert from the SkySupperToSeat Inventory Management System.
                         </p>
                     </div>
                 </body>
