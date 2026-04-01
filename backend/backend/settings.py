@@ -146,6 +146,12 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# SendGrid Email Settings
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+SENDGRID_FROM_EMAIL = config('SENDGRID_FROM_EMAIL', default='noreply@example.com')
+LOW_STOCK_ALERT_EMAIL = config('TO_EMAIL', default='')
+LOW_STOCK_THRESHOLD = 10
+
 # This setting is required to allow the frontend to send cookies
 # with the requests
 REST_FRAMEWORK = {
