@@ -10,33 +10,59 @@ class UserInfoSerializer(serializers.ModelSerializer):
         fields = ('employee_id', 'contact_info', 'avatar')
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=8)
     employee_id = serializers.CharField(write_only=True, required=True)
-    contact_info = serializers.CharField(write_only=True, required=True)
+    contact_info = serializers.CharField(write_only=True, required=False, allow_blank=True)
     avatar = serializers.URLField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
         fields = ('username', 'password', 'email', 'employee_id', 'contact_info', 'avatar')
 
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long")
+
+        if not any(char.isupper() for char in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter")
+
+        if not any(char.islower() for char in value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter")
+
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("Password must contain at least one number")
+
+        return value
+
+    def validate_employee_id(self, value):
+        if UserInfo.objects.filter(employee_id=value).exists():
+            raise serializers.ValidationError("This employee ID is already registered")
+        return value
+
+    def validate(self, data):
+        employee_id = data.get('employee_id')
+        email = data.get('email')
+
+        if not Staff.objects.filter(employee_id=employee_id, email=email).exists():
+            raise serializers.ValidationError({
+                'employee_id': 'Employee ID and email combination not found in staff records. Please contact HR.'
+            })
+
+        return data
+
     def create(self, validated_data):
         employee_id = validated_data.pop('employee_id')
-        contact_info = validated_data.pop('contact_info')
+        contact_info = validated_data.pop('contact_info', '')
         avatar = validated_data.pop('avatar', '')
         email = validated_data.get('email', '')
-
-        is_verified = Staff.objects.filter(
-            employee_id=employee_id,
-            email=email
-        ).exists()
 
         with transaction.atomic():
             user = User.objects.create_user(
                 username=validated_data['username'],
                 email=email,
                 password=validated_data['password'],
-                role='viewer',  
-                is_staff_verified=is_verified  
+                role='viewer',
+                is_staff_verified=True
             )
             UserInfo.objects.create(
                 user=user,

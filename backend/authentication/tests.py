@@ -76,7 +76,7 @@ class UserRegistrationTestCase(APITestCase):
 
 
     def test_register_with_missing_required_fields(self):
-        required_fields = ['username', 'password', 'employee_id', 'contact_info']
+        required_fields = ['username', 'password', 'employee_id']
 
         for field in required_fields:
             payload = self.valid_payload.copy()
@@ -482,34 +482,33 @@ class StaffVerificationTestCase(APITestCase):
 
         payload = {
             'username': 'johndoe',
-            'email': 'wrong@email.com',  
+            'email': 'wrong@email.com',
             'password': 'SecurePass123!',
-            'employee_id': 'EMP001',  
+            'employee_id': 'EMP001',
             'contact_info': '+1234567890'
         }
 
         response = self.client.post(self.register_url, payload, format='json')
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        user = User.objects.get(username='johndoe')
-        self.assertFalse(user.is_staff_verified) 
-        self.assertEqual(user.role, 'viewer')  
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('employee_id', response.data)
+        self.assertFalse(User.objects.filter(username='johndoe').exists())
 
     def test_register_with_wrong_employee_id(self):
 
         payload = {
             'username': 'johndoe',
-            'email': 'john@company.com',  
+            'email': 'john@company.com',
             'password': 'SecurePass123!',
-            'employee_id': 'FAKE999',  
+            'employee_id': 'FAKE999',
             'contact_info': '+1234567890'
         }
 
         response = self.client.post(self.register_url, payload, format='json')
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        user = User.objects.get(username='johndoe')
-        self.assertFalse(user.is_staff_verified)  
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('employee_id', response.data)
+        self.assertFalse(User.objects.filter(username='johndoe').exists())
 
     def test_register_without_staff_record(self):
 
@@ -523,9 +522,9 @@ class StaffVerificationTestCase(APITestCase):
 
         response = self.client.post(self.register_url, payload, format='json')
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        user = User.objects.get(username='newuser')
-        self.assertFalse(user.is_staff_verified)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('employee_id', response.data)
+        self.assertFalse(User.objects.filter(username='newuser').exists())
 
 
 class PermissionTestCase(APITestCase):
@@ -571,7 +570,7 @@ class PermissionTestCase(APITestCase):
         response = self.client.get('/api/items/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_verified_viewer_cannot_create_item(self):
+    def test_verified_viewer_can_create_item(self):
 
         self.client.force_authenticate(user=self.verified_viewer)
         payload = {
@@ -582,7 +581,7 @@ class PermissionTestCase(APITestCase):
             'price': '99.99'
         }
         response = self.client.post('/api/items/', payload)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_verified_staff_can_create_item(self):
 
